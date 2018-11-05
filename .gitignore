@@ -1,0 +1,9 @@
+*.DS_Store
+*.txt
+*.pdf
+*.prof
+
+mag_src_hash
+mag_dst_hash
+
+
