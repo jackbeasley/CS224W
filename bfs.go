@@ -25,6 +25,7 @@ func main() {
 	var followOut = flag.Bool("out", false, "Follow out links (i.e. cited papers)")
 	var followIn = flag.Bool("in", false, "Follow in links (i.e. paper who cite)")
 	var levels = flag.Int("levels", 1, "How many levels to BFS out")
+	var fdLimit = flag.Int("fdLimit", 100, "How many open files to use")
 	flag.Parse()
 
 	if *cpuprofile != "" {
@@ -50,7 +51,7 @@ func main() {
 
 	fmt.Printf("Starting from %v and searcher for %v levels (follow out: %v, follow in: %v)\n", sourcePaperID, *levels, *followOut, *followIn)
 
-	papersToReferences, seenPapers := Bfs(sourcePaperID, *followIn, *followOut, *levels)
+	papersToReferences, seenPapers := Bfs(sourcePaperID, *followIn, *followOut, *levels, *fdLimit)
 
 	numEdges := 0
 	for _, references := range papersToReferences {
@@ -96,7 +97,7 @@ func GetDstFilenameForPaperID(paperID int64) string {
 	return path.Join(dstHashDir, hashFilename(paperID%3000))
 }
 
-func Bfs(initPaperID int64, followIn, followOut bool, levels int) (map[int64]map[int64]bool, int) {
+func Bfs(initPaperID int64, followIn, followOut bool, levels int, fdLimit int) (map[int64]map[int64]bool, int) {
 	papersToReferences := make(map[int64]map[int64]bool, levels*10)
 
 	seenPapers := make(map[int64]bool, 5*levels*levels) // Like a set
@@ -105,7 +106,7 @@ func Bfs(initPaperID int64, followIn, followOut bool, levels int) (map[int64]map
 	currentPapers[initPaperID] = true
 
 	for i := 0; i < levels; i++ {
-		paperRefsAtLevel := GetReferences(currentPapers, followIn, followOut)
+		paperRefsAtLevel := GetReferences(currentPapers, followIn, followOut, fdLimit)
 		for paperID, references := range paperRefsAtLevel {
 			if _, ok := papersToReferences[paperID]; !ok {
 				papersToReferences[paperID] = references
@@ -188,9 +189,9 @@ func getRefsInFile(paperIDs map[int64]bool, refFile string, dst bool) map[int64]
 	return papersToReferences
 }
 
-func GetReferences(paperIDs map[int64]bool, followIn, followOut bool) map[int64]map[int64]bool {
+func GetReferences(paperIDs map[int64]bool, followIn, followOut bool, fdLimit int) map[int64]map[int64]bool {
 	var wg sync.WaitGroup
-	semaphoreChan := make(chan struct{}, 100)
+	semaphoreChan := make(chan struct{}, fdLimit)
 
 	inResults := make([]map[int64]map[int64]bool, len(paperIDs))
 	if followIn {
