@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	// "context"
 	"flag"
 	"fmt"
 	"log"
@@ -12,7 +11,6 @@ import (
 	"runtime/pprof"
 	"strconv"
 	"sync"
-	// "golang.org/x/sync/semaphore"
 )
 
 const (
@@ -192,7 +190,8 @@ func getRefsInFile(paperIDs map[int64]bool, refFile string, dst bool) map[int64]
 
 func GetReferences(paperIDs map[int64]bool, followIn, followOut bool) map[int64]map[int64]bool {
 	var wg sync.WaitGroup
-	// sem := semaphore.NewWeighted(int64(100))
+	semaphoreChan := make(chan struct{}, 100)
+
 	inResults := make([]map[int64]map[int64]bool, len(paperIDs))
 	if followIn {
 		filesToInPapers := make(map[string]map[int64]bool, len(paperIDs))
@@ -206,11 +205,10 @@ func GetReferences(paperIDs map[int64]bool, followIn, followOut bool) map[int64]
 		for file, paperIDsInFile := range filesToInPapers {
 			wg.Add(1)
 			go func(filename string, ids map[int64]bool, resultNum int) {
-				// sem.Acquire(context.Background(), 1)
-				// defer sem.Release(1)
+				semaphoreChan <- struct{}{}
 				defer wg.Done()
 				inResults[resultNum] = getRefsInFile(ids, filename, true)
-
+				<-semaphoreChan
 			}(file, paperIDsInFile, inResultNum)
 			inResultNum++
 		}
@@ -230,11 +228,11 @@ func GetReferences(paperIDs map[int64]bool, followIn, followOut bool) map[int64]
 		outResultNum := 0
 		for file, paperIDsInFile := range filesToOutPapers {
 			wg.Add(1)
-			// sem.Acquire(context.Background(), 1)
-			// defer sem.Release(1)
 			go func(filename string, ids map[int64]bool, resultNum int) {
+				semaphoreChan <- struct{}{}
 				defer wg.Done()
 				outResults[resultNum] = getRefsInFile(ids, filename, false)
+				<-semaphoreChan
 
 			}(file, paperIDsInFile, outResultNum)
 			outResultNum++
