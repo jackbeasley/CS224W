@@ -2,6 +2,8 @@
 *.txt
 *.pdf
 *.prof
+*.pyc
+*.graph
 
 mag_src_hash
 mag_dst_hash
