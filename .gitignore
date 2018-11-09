@@ -1,6 +1,5 @@
 *.DS_Store
 *.txt
-*.pdf
 *.prof
 *.pyc
 *.graph

@@ -1,8 +1,8 @@
 ---
 title: "Finding Foundations"
-author: 
-- "Jack Beasley, `jbeasley@stanford.edu`"
-- "Kristine Guo, `kguo98@stanford.edu`"
+author:
+  - "Jack Beasley, `jbeasley@stanford.edu`"
+  - "Kristine Guo, `kguo98@stanford.edu`"
 date: "October 18th, 2018"
 #linestretch: 1.1
 geometry: "margin=1in"
@@ -12,17 +12,18 @@ bibliography: "./citations.bib"
 csl: "./chicago-note-bibliography.csl"
 link-citations: yes
 ---
+
 # Introduction
 
 The fields of scientometrics and bibliometrics seek to understand and measure science through quantitative measures of scientific output. Within these fields, determining which papers are most important and impactful within a given field of science is a key problem that requires broad domain knowledge and exhaustive research.
 
 As an alternative to manually seeking out foundational papers, researchers have turned towards citation network analysis in order to examine the evolutionary structure of scientific knowledge throughout time. However, while literature exists on applying these methods to understanding the development of specific fields of science, such findings are limited to specific fields and fail to apply to the broader day-to-day inquiries a researcher has.
 
-To bridge this gap between research and practice, we seek to create a recommendation system  based on main path analysis to find articles foundational to the development of the paper at hand, apply those methods to a large, comprehensive citation dataset that draws from many fields, and do so in an efficient manner such that recommendations can feasibly be returned to a user interactively.
+To bridge this gap between research and practice, we seek to create a recommendation system based on main path analysis to find articles foundational to the development of the paper at hand, apply those methods to a large, comprehensive citation dataset that draws from many fields, and do so in an efficient manner such that recommendations can feasibly be returned to a user interactively.
 
-By recommender system, we mean a system that takes an arbitrary paper $P$ as an input and returns a set of the $k$ most foundational papers to $P$ in a reasonable amount of time so researchers can in theory use the system interactively. To be useful in the real world, this system must operate on papers from any field, not simply a small subfield, as a subgraph will miss important interdisciplinary citations and only be useful to a small subset of the academic population. 
+By recommender system, we mean a system that takes an arbitrary paper $P$ as an input and returns a set of the $k$ most foundational papers to $P$ in a reasonable amount of time so researchers can in theory use the system interactively. To be useful in the real world, this system must operate on papers from any field, not simply a small subfield, as a subgraph will miss important interdisciplinary citations and only be useful to a small subset of the academic population.
 
-By foundational, we mean papers that contribute the most important ideas to the article in question. A foundational paper is one that contributes ideas that are *used* to create the new article in question, and are often found in lists of "papers that stood the test of time." Reframed, foundational papers are often called classics that lead to the creation of whole fields built on top of their results and would have lead to the greatest negative implications for the current paper if retracted or falsified.
+By foundational, we mean papers that contribute the most important ideas to the article in question. A foundational paper is one that contributes ideas that are _used_ to create the new article in question, and are often found in lists of "papers that stood the test of time." Reframed, foundational papers are often called classics that lead to the creation of whole fields built on top of their results and would have lead to the greatest negative implications for the current paper if retracted or falsified.
 
 We postulate that these foundational papers can offer researchers and academics information that is different yet complementary to that provided by the articles directly cited by a given paper. For example, having knowledge of the development of the current paper may prove useful when conducting literature reviews, or more generally, when attempting to gain a broad understanding the development of a concept or technique.
 
@@ -64,13 +65,14 @@ Finally, and perhaps most importantly, Xiao et al. also provide intuitive graphi
 
 As seen from the literature review above, citation network and main path analysis are often limited to characterizing the development structures of specific concepts and subfields such as Absorptive Capacity, the Hirsch Index, and data quality literature.
 
-This reality proves less than ideal for researchers and academics, who are told to “stand on the shoulders of giants” but are not given any tools that they can use to efficiently peruse and explore the development of their field. For example, conducting a literature review requires the ability to determine what works constitute essential background reading for a given paper, as well as assessing works with large impact when attempting to create new innovational methods. 
+This reality proves less than ideal for researchers and academics, who are told to “stand on the shoulders of giants” but are not given any tools that they can use to efficiently peruse and explore the development of their field. For example, conducting a literature review requires the ability to determine what works constitute essential background reading for a given paper, as well as assessing works with large impact when attempting to create new innovational methods.
 
 However, this is not an easy process, as making literature reviews is a time-consuming manual problem that consists of recursively searching through papers’ citations to try to understand what actual authorities and ground truths underlie a research problem. Beyond even just academics, people with casual interest in a field should also be able to have easy access to a field’s literature without having to manually search for its most foundational papers. Such tasks would benefit from comprehensive knowledge of the development of the techniques and concepts under question.
 
 # Data
 
 ## Dataset
+
 While there are many options for citation networks, for this project we selected the Microsoft Academic Graph (MAG)[@sinhaOverviewMicrosoftAcademic2015]. We chose this dataset because it is [freely available under an open license](https://docs.microsoft.com/en-us/academic-services/graph/get-started-setup-provisioning#open-data-license-odc-by), and it has also been described as "the most comprehensive publicly available dataset of its kind" in a review article [@herrmannovaAnalysisMicrosoftAcademic2016].
 
 We initially chose the 2017 snapshot of the MAG [made available by the Open Academic Society](https://www.openacademic.ai/oag/), however, the IDs assigned to papers in that dataset do not match those used by the [Microsoft Academic API](https://labs.cognitive.microsoft.com/en-us/project-academic-knowledge), meaning that looking up paper titles from IDs required a local copy of the entire uncompressed dataset which totaled 300GB.
@@ -86,9 +88,10 @@ There has been some work in this space tackling the general problem of working w
 In other words, we must devise a method for the initial construction of the subgraph by BFS from the paper of interest. To do so, we devised a system that efficiently crawls over the entire MAG edge list and outputs an edge list that corresponds to a specific paper using the principles proposed by GraphChi and X-Stream. Our system has two distinct phases, preprocessing and BFS construction, which we will describe in two sections.
 
 ### Preprocessing
+
 We adopt a simplified version of the concept of “shards” proposed by GraphChi in order to simplify our implementation modeled after a hash map. The algorithm we implemented reads through every edge in the MAG’s edge list and writes edges to files based on a simple modular hash function on either the source paper’s ID or the referenced paper’s ID. For example, if an edge has a source ID of 23 and a destination ID of 15 and we are hashing into 20 buckets, we would write that entry once to a file called 03.txt for the source-indexed hash map and once to a file called 15.txt for the destination-indexed hash map.
 
-For the MAG, we decIDed to create both a source and a destination hash map with 3000 buckets each. Each of these contains a full copy of the MAG edge list and thus this data structure consumes a total of 62.6 GB of space on the disk, which fits on our laptops. We chose 3000 buckets, because that was the general heuristic for the largest number of file descriptors allowed open at one time. The number of open file descriptors is a limiting factor in this case because the preprocessing program maintains an open file and corresponding buffer for each output bucket to speed up the preprocessing step, which takes around 15m for each hash table. Each of the 3000 buckets are around 10MB.
+For the MAG, we decided to create both a source and a destination hash map with 3000 buckets each. Each of these contains a full copy of the MAG edge list and thus this data structure consumes a total of 62.6 GB of space on the disk, which fits on our laptops. We chose 3000 buckets, because that was the general heuristic for the largest number of file descriptors allowed open at one time. The number of open file descriptors is a limiting factor in this case because the preprocessing program maintains an open file and corresponding buffer for each output bucket to speed up the preprocessing step, which takes around 15m for each hash table. Each of the 3000 buckets are around 10MB.
 
 ### Traversal
 
@@ -121,10 +124,12 @@ We will evaluate the various methods for determining paper importance in a citat
 As a baseline, we will investigate the performance of popular single-score methods of measuring importance. Specifically, we will survey node degree (number of citations) as a common heuristic for determining a paper’s importance, as well as two measures of node centrality: PageRank and Hubs and Authorities.
 
 ### Node Degree
+
 Intuitively, important papers are cited more often than the average paper, and thus one heuristic we can use to find foundational papers is simply recommend the nodes with the greatest in-degree links, i.e., the nodes with the greatest number of citations.
 
 ### PageRank
-The PageRank for any paper 
+
+The famous PageRank algorithm [@pagePageRankCitationRanking1998], gives us a general idea of the importance of a paper based on its structure within the graph. This measure does not correspond specifically to the paper of interest being a general importance measurement, however, we could "personalize" it by adding a teleport set of the paper of interest.
 
 ### Hubs and Authorities
 
@@ -135,6 +140,7 @@ In application to citation networks, Hubs and Authorities assigns each paper two
 There are two major algorithmic decisions to make when implementing main path analysis: choosing a method of finding traversal counts and choosing a path search mechanism. Notably, we needed to implement from scratch all the main path analysis methods below.
 
 ### Traversal Counts
+
 There are many different methods for computing edge traversal counts, but most yield similar results in practice. However, previous literature suggests that search path count (SPC) provides additional favorable properties on top of otherwise similar methods, and therefore was the most preferred and widely used [@xiaoKnowledgeDiffusionPath2014]. For this reason, we plan to adopt SPC.
 
 The SPC value for a given edge is the number of times it is traversed during all possible paths from source to destination nodes. Manually computing all possible paths in a graph is computationally expensive, but fortunately Batagelj [@batageljEfficientAlgorithmsCitation2003] devised an efficient algorithm to compute the SPC values of all edges in $O(\text{\# of edges})$ time.
@@ -143,14 +149,14 @@ Let $aRb$ represents an edge from node $a$ to $b$. We define two new quantities:
 
 $$ N^{-}(u) = \begin{cases}
 1, & u = s \\
-\sum_{v:vRu} N^{-}(v), & \text{otherwise} \\
+\sum\_{v:vRu} N^{-}(v), & \text{otherwise} \\
 \end{cases} $$
 
 Where $N^{-}(u)$ denotes the number of paths from the source node $s$ to node $u$.
 
 $$ N^{+}(u) = \begin{cases}
 1, & u = t \\
-\sum_{v:vRu} N^{+}(v), & \text{otherwise} \\
+\sum\_{v:vRu} N^{+}(v), & \text{otherwise} \\
 \end{cases} $$
 
 Where $N^{+}(u)$ denotes the number of paths from v to a destination node t (nodes with no out-links).
@@ -159,7 +165,7 @@ Thus, we topologically iterate over all the nodes and compute these two values. 
 
 ### Path Search
 
-Unlike for traversal counts, different path search methods can yield significantly different results. There are three common techniques: local search, global search and key-route search. We plan to evaluate these different approaches on our dataset and select the one that seems to work the best for our specific case of identifying foundational papers  [@xiaoKnowledgeDiffusionPath2014].
+Unlike for traversal counts, different path search methods can yield significantly different results. There are three common techniques: local search, global search and key-route search. We plan to evaluate these different approaches on our dataset and select the one that seems to work the best for our specific case of identifying foundational papers [@xiaoKnowledgeDiffusionPath2014].
 
 So far, we have implemented local search for main path analysis. Starting from the source node (i.e., the paper under consideration), this search greedily follows the edge with the greatest SPC value until it reaches a destination node. The paper that the search encountered during its traversal make up the main path, which are then reported as the foundational papers.
 
@@ -232,7 +238,7 @@ In the remainder of our project we plan to shift our focus broadly from implemen
 
 For data, we plan on running a survey of the MAG to get an idea for the distributions of subgraphs that stem from papers. This will involve finding the distributions of stats like clustering coefficients, number of nodes and number of edges of these subgraphs. While doing this survey of the MAG, we also plan to use and evaluate our crawler, collecting runtime, cpu and memory use and other performance metrics for each subgraph we crawl. We expect this survey to be a relatively small project that will give us some better intuitions for the structure of the MAG.
 
-We plan to focus most of our energy for the rest of the project on fine-tuning our recommendations algorithms and evaluating them against several baselines to get an idea of how our recommendations differ from those given by methods like PageRank. 
+We plan to focus most of our energy for the rest of the project on fine-tuning our recommendations algorithms and evaluating them against several baselines to get an idea of how our recommendations differ from those given by methods like PageRank.
 
 Our first project is to stabilize our implementation of SPC. Right now, some edges have SPC values of 0, which we believe to be the result of cycles in the citation network. This particular phenomenon needs more research into its exact causes.
 
@@ -241,4 +247,5 @@ Once we are confident in our SPC implementation, we plan on implementing several
 Once we have solidified our implementation of main path analysis recommendations, we plan on evaluating it against several baselines, including the ones we have already done as well as other, more sophisticated baselines, like node2vec. Evaluation will require labeling several papers manually that we know well, to determine which papers we think are most foundational and therefore good recommendations and determining how many of those each method finds. We acknowledge that this will be somewhat of an art as the question of what is foundational will depend on who is asked, however, we think this method, along with listing all the results, will give us a pretty good idea of how the different systems perform. Additionally, if time permits, we might try to find recommendations using different systems for certain papers and ask the authors of those papers which set of recommendations identified what they think are the most foundational papers. We anticipate that evaluation will be tricky as success for a recommender system is hard to define without a large number of people using said recommender system, so we plan to put a lot of energy into this aspect of our final report.
 
 \newpage
+
 # References
