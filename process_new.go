@@ -37,6 +37,7 @@ func main() {
 	var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
 	var paperReferencesFile = flag.String("paperReferencesFile", "PaperReferences.txt", "Source MAG file path")
 	var destHash = flag.Bool("destHash", false, "Hash based on destination id (defaults to source id)")
+	var compress = flag.Bool("compress", true, "Gzip hash buckets")
 	var buckets = flag.Int("buckets", 3000, "How many file buckets to hash to")
 	flag.Parse()
 	if *destHash {
@@ -75,17 +76,17 @@ func main() {
 	var index *bfs.EdgeIndex
 	var err error
 	if !*destHash {
-		index, err = bfs.OpenIndex(SrcHashFolder, true)
+		index, err = bfs.OpenIndex(SrcHashFolder, true, 50)
 		if err != nil {
 			log.Fatal(err)
 		}
 	} else {
-		index, err = bfs.OpenIndex(DstHashFolder, false)
+		index, err = bfs.OpenIndex(DstHashFolder, false, 50)
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
 
-	index.PopulateIndex(*paperReferencesFile, *buckets)
+	index.PopulateIndex(*paperReferencesFile, *buckets, *compress)
 
 }
