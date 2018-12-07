@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -49,8 +50,6 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Printf("Starting from %v and searcher for %v levels (follow out: %v, follow in: %v)\n", sourcePaperID, *levels, *followOut, *followIn)
-
 	papersToReferences, seenPapers := Bfs(sourcePaperID, *followIn, *followOut, *levels, *fdLimit)
 
 	numEdges := 0
@@ -58,9 +57,36 @@ func main() {
 		numEdges += len(references)
 	}
 	filename := fmt.Sprintf("%v.txt", paperIDStr)
-	fmt.Printf("Found %v nodes, %v edges and output edge list to %v", seenPapers, numEdges, filename)
 
 	writeEdgeList(filename, papersToReferences)
+
+	report := ResultsReport{
+		SourcePaperID:    sourcePaperID,
+		NumberBFSLevels:  *levels,
+		FollowedOutLinks: *followOut,
+		FollowedInLinks:  *followIn,
+
+		OutputEdgeList: filename,
+		NumFoundNodes:  seenPapers,
+		NumFoundEdges:  numEdges,
+	}
+
+	jsonText, err := json.Marshal(report)
+	if err != nil {
+		fmt.Printf("Error marshalling JSON: %v\n", err)
+	}
+	fmt.Println(string(jsonText))
+}
+
+type ResultsReport struct {
+	SourcePaperID    int64 `json:"sourcePaperID"`
+	NumberBFSLevels  int   `json:"numberBFSLevels"`
+	FollowedOutLinks bool  `json:"followedOutLinks"`
+	FollowedInLinks  bool  `json:"followedInLinks"`
+
+	OutputEdgeList string `json:"outputEdgeList"`
+	NumFoundEdges  int    `json:"numFoundEdges"`
+	NumFoundNodes  int    `json:"numFoundNodes"`
 }
 
 func writeEdgeList(filename string, graph map[int64]map[int64]bool) {
