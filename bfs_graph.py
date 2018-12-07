@@ -53,7 +53,7 @@ def get_bfs_graph(paper_id, levels, follow_out, follow_in, fdLimit=100):
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     # Loop through STDOUT to print as go runs
     for line in iter(p.stdout.readline, ''):
-        print line
+        print line.rstrip()
     p.stdout.close()
     return create_snap_graph("{}.txt".format(paper_id),
                              "{}.graph".format(paper_id))
