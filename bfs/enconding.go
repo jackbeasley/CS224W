@@ -58,6 +58,7 @@ type TextDecoder struct {
 
 func NewTextDecoder(reader io.Reader) *TextDecoder {
 	scanner := bufio.NewScanner(reader)
+	gob.Register(Edge{})
 	return &TextDecoder{
 		scanner: *scanner,
 	}

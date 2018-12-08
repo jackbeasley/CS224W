@@ -1,5 +1,11 @@
 package bfs
 
+import (
+	"encoding/binary"
+
+	boom "github.com/tylertreat/BoomFilters"
+)
+
 type BFSTraverser struct {
 	srcIndex *EdgeIndex
 	dstIndex *EdgeIndex
@@ -10,6 +16,34 @@ type NodeStore interface {
 	HasSeen(nodeID int64) bool
 	Mark(nodeID int64)
 	Clear()
+}
+
+type BloomNodeStore struct {
+	inverseBloom *boom.InverseBloomFilter
+}
+
+func NewBloomNodeStore(size int) NodeStore {
+	return &BloomNodeStore{
+		inverseBloom: boom.NewInverseBloomFilter(uint(size)),
+	}
+}
+
+func (bns *BloomNodeStore) HasSeen(nodeID int64) bool {
+	bs := make([]byte, 8)
+	binary.PutVarint(bs, nodeID)
+	return bns.inverseBloom.Test(bs)
+}
+
+func (mns *BloomNodeStore) Mark(nodeID int64) {
+	bs := make([]byte, 8)
+	binary.PutVarint(bs, nodeID)
+	mns.inverseBloom.Add(bs)
+}
+
+func (mns *BloomNodeStore) Clear() {
+	size := mns.inverseBloom.Capacity()
+	mns.inverseBloom = nil
+	mns.inverseBloom = boom.NewInverseBloomFilter(size)
 }
 
 type MapNodeStore struct {
@@ -35,6 +69,10 @@ func (mns *MapNodeStore) Clear() {
 	size := len(mns.nodes)
 	mns.nodes = nil
 	mns.nodes = make(map[int64]struct{}, size)
+}
+
+func NewBFSTraverserBloom(srcIndex, dstIndex *EdgeIndex) *BFSTraverser {
+	return NewBFSTraverser(srcIndex, dstIndex, NewBloomNodeStore(100000000))
 }
 
 func NewBFSTraverserMap(srcIndex, dstIndex *EdgeIndex) *BFSTraverser {

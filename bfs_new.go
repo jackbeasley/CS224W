@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 	"runtime/pprof"
 	"strconv"
 
@@ -21,10 +22,12 @@ const (
 
 func main() {
 	var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
+	var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
 
 	var followOut = flag.Bool("out", false, "Follow out links (i.e. cited papers)")
 	var followIn = flag.Bool("in", false, "Follow in links (i.e. paper who cite)")
 	var levels = flag.Int("levels", 1, "How many levels to BFS out")
+	var bloom = flag.Bool("bloom", false, "Use a bloom filter for really big BFSs")
 	var fdLimit = flag.Int("fdLimit", 100, "How many open files to use")
 	flag.Parse()
 
@@ -72,14 +75,34 @@ func main() {
 		panic(err)
 	}
 
-	traverser := bfs.NewBFSTraverserMap(srcIndex, dstIndex)
+	var traverser *bfs.BFSTraverser
+	if *bloom {
+		traverser = bfs.NewBFSTraverserBloom(srcIndex, dstIndex)
+	} else {
+		traverser = bfs.NewBFSTraverserMap(srcIndex, dstIndex)
+	}
 
 	//fmt.Printf("Starting from node %d and BFSing for %d levels (followOut: %v, followIn %v)...\n", sourcePaperID, *levels, *followOut, *followIn)
 
+	level := 0
 	numPapers, numEdges, err := traverser.BFS([]int64{sourcePaperID}, *levels, *followIn, *followOut, func(edges []bfs.Edge) {
+		//fmt.Printf("Found %d edges at level %d\n", len(edges), level)
 		for _, edge := range edges {
 			textEncoder.Encode(edge)
 		}
+		if *memprofile != "" {
+			f, err := os.Create(fmt.Sprintf("%d-%s", level, *memprofile))
+			if err != nil {
+				log.Fatal("could not create memory profile: ", err)
+			}
+			runtime.GC() // get up-to-date statistics
+			if err := pprof.WriteHeapProfile(f); err != nil {
+				log.Fatal("could not write memory profile: ", err)
+			}
+			f.Close()
+		}
+		level++
+
 	})
 
 	report := ResultsReport{

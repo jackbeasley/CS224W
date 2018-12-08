@@ -42,7 +42,7 @@ def get_bfs_graph(paper_id, levels, follow_out, follow_in, fdLimit=100):
     :param fdLimit:
     :returns: a snap graph of the papers found in the BFS along with a map that maps MAG ids (int64) to SNAP ids (int32)
     """
-    cmd = ["go", "run", "bfs.go"]
+    cmd = ["go", "run", "bfs_new.go"]
     if follow_out:
         cmd.append('-out')
     if follow_in:
