@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime/pprof"
 	"strconv"
 
 	"./bfs"
@@ -26,9 +27,18 @@ func main() {
 	var followIn = flag.Bool("in", false, "Follow in links (i.e. paper who cite)")
 	var levels = flag.Int("levels", 1, "How many levels to BFS out")
 	var bloom = flag.Bool("bloom", false, "Use a bloom filter for really big BFSs")
-	var fdLimit = flag.Int("fdLimit", 20, "How many open files to use")
+	var fdLimit = flag.Int("fdLimit", 100, "How many open files to use")
+	var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 	flag.Parse()
 
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
 	go func() {
 		log.Println(http.ListenAndServe("localhost:6060", nil))
 	}()
