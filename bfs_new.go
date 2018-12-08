@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	srcHashDir    = "mag_src_hash"
-	dstHashDir    = "mag_dst_hash"
+	srcHashDir    = "mag_src_hash_text"
+	dstHashDir    = "mag_dst_hash_text"
 	errPaperIDArg = "You must provide an integer paper ID as an argument"
 )
 

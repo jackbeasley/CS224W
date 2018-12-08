@@ -92,6 +92,22 @@ func (te *TextDecoder) Decode() (Edge, error) {
 	}, nil
 }
 
+func (te *TextDecoder) DecodeInts() (int64, int64, error) {
+	if ok := te.scanner.Scan(); !ok {
+		if te.scanner.Err() != nil {
+			return 0, 0, te.scanner.Err()
+		}
+		return 0, 0, io.EOF
+	}
+	line := te.scanner.Bytes()
+	i := bytes.Index(line, []byte("\t"))
+	// Use this rather than strconv.ParseInt becuase that requires
+	// converting to strings, and thus allocating strings
+	srcID := parseBytes(line[:i])
+	dstID := parseBytes(line[i+1:])
+	return srcID, dstID, nil
+}
+
 func (te *TextDecoder) Close() error {
 	return nil
 }
