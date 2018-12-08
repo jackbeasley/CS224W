@@ -63,7 +63,7 @@ func (ei *EdgeIndex) matchEdgesInFile(fileID int, paperIDs map[int64]bool, match
 	}
 	defer reader.Close()
 
-	readBuf := bufio.NewReaderSize(reader, 5000000)
+	readBuf := bufio.NewReaderSize(reader, 500)
 
 	d, err := NewBinaryDecoder(readBuf, true)
 	if err != nil {

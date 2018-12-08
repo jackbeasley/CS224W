@@ -7,11 +7,12 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"runtime"
-	"runtime/pprof"
 	"strconv"
 
 	"./bfs"
+
+	"net/http"
+	_ "net/http/pprof"
 )
 
 const (
@@ -21,27 +22,17 @@ const (
 )
 
 func main() {
-	var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
-	var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
-
 	var followOut = flag.Bool("out", false, "Follow out links (i.e. cited papers)")
 	var followIn = flag.Bool("in", false, "Follow in links (i.e. paper who cite)")
 	var levels = flag.Int("levels", 1, "How many levels to BFS out")
 	var bloom = flag.Bool("bloom", false, "Use a bloom filter for really big BFSs")
-	var fdLimit = flag.Int("fdLimit", 100, "How many open files to use")
+	var fdLimit = flag.Int("fdLimit", 20, "How many open files to use")
 	flag.Parse()
 
-	if *cpuprofile != "" {
-		f, err := os.Create(*cpuprofile)
-		if err != nil {
-			log.Fatal("could not create CPU profile: ", err)
-		}
-		defer f.Close()
-		if err := pprof.StartCPUProfile(f); err != nil {
-			log.Fatal("could not start CPU profile: ", err)
-		}
-		defer pprof.StopCPUProfile()
-	}
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+
 	paperIDStr := flag.Arg(0)
 	if paperIDStr == "" {
 		fmt.Println(errPaperIDArg)
@@ -84,24 +75,11 @@ func main() {
 
 	//fmt.Printf("Starting from node %d and BFSing for %d levels (followOut: %v, followIn %v)...\n", sourcePaperID, *levels, *followOut, *followIn)
 
-	level := 0
 	numPapers, numEdges, err := traverser.BFS([]int64{sourcePaperID}, *levels, *followIn, *followOut, func(edges []bfs.Edge) {
 		//fmt.Printf("Found %d edges at level %d\n", len(edges), level)
 		for _, edge := range edges {
 			textEncoder.Encode(edge)
 		}
-		if *memprofile != "" {
-			f, err := os.Create(fmt.Sprintf("%d-%s", level, *memprofile))
-			if err != nil {
-				log.Fatal("could not create memory profile: ", err)
-			}
-			runtime.GC() // get up-to-date statistics
-			if err := pprof.WriteHeapProfile(f); err != nil {
-				log.Fatal("could not write memory profile: ", err)
-			}
-			f.Close()
-		}
-		level++
 
 	})
 
