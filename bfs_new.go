@@ -75,11 +75,9 @@ func main() {
 
 	//fmt.Printf("Starting from node %d and BFSing for %d levels (followOut: %v, followIn %v)...\n", sourcePaperID, *levels, *followOut, *followIn)
 
-	numPapers, numEdges, err := traverser.BFS([]int64{sourcePaperID}, *levels, *followIn, *followOut, func(edges []bfs.Edge) {
+	numPapers, numEdges, err := traverser.BFS([]int64{sourcePaperID}, *levels, *followIn, *followOut, func(srcID int64, dstID int64) {
 		//fmt.Printf("Found %d edges at level %d\n", len(edges), level)
-		for _, edge := range edges {
-			textEncoder.Encode(edge)
-		}
+		textEncoder.Encode(bfs.Edge{SrcID: srcID, DstID: dstID})
 
 	})
 

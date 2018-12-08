@@ -87,7 +87,7 @@ func NewBFSTraverser(srcIndex, dstIndex *EdgeIndex, store NodeStore) *BFSTravers
 	}
 }
 
-func (bt *BFSTraverser) BFS(initPapers []int64, levels int, followIn, followOut bool, callback func([]Edge)) (int64, int64, error) {
+func (bt *BFSTraverser) BFS(initPapers []int64, levels int, followIn, followOut bool, callback func(int64, int64)) (int64, int64, error) {
 	defer bt.store.Clear()
 	currentPapers := make(map[int64]bool, 10000) // Will quickly grow to be quite large
 	for _, paperID := range initPapers {
@@ -98,40 +98,36 @@ func (bt *BFSTraverser) BFS(initPapers []int64, levels int, followIn, followOut 
 	numPapers := int64(len(initPapers))
 	numEdges := int64(0)
 	for i := 0; i < levels; i++ {
-		var outRefsAtLevel []Edge
-		var err error
-		if followOut {
-			outRefsAtLevel, err = bt.srcIndex.GetReferencedEdges(currentPapers, true, false)
-			if err != nil {
-				return 0, 0, err
+		nextPapers := make(map[int64]bool, 10000)
+
+		callbackWrap := func(srcID int64, dstID int64) {
+			callback(srcID, dstID)
+			if !bt.store.HasSeen(srcID) {
+				numPapers++
+				nextPapers[srcID] = true
+				bt.store.Mark(srcID)
 			}
-		}
-		var inRefsAtLevel []Edge
-		if followIn {
-			inRefsAtLevel, err = bt.dstIndex.GetReferencedEdges(currentPapers, false, true)
-			if err != nil {
-				return 0, 0, err
+			if !bt.store.HasSeen(dstID) {
+				numPapers++
+				nextPapers[dstID] = true
+				bt.store.Mark(dstID)
 			}
-		}
-		refsFound := make([]Edge, 0, len(outRefsAtLevel)+len(inRefsAtLevel))
-		refsFound = append(refsFound, outRefsAtLevel...)
-		refsFound = append(refsFound, inRefsAtLevel...)
-		currentPapers = nil
-		currentPapers = make(map[int64]bool, 10000)
-		for _, edge := range refsFound {
 			numEdges++
-			if !bt.store.HasSeen(edge.SrcID) {
-				numPapers++
-				currentPapers[edge.SrcID] = true
-				bt.store.Mark(edge.SrcID)
-			}
-			if !bt.store.HasSeen(edge.DstID) {
-				numPapers++
-				currentPapers[edge.DstID] = true
-				bt.store.Mark(edge.DstID)
+		}
+
+		if followOut {
+			err := bt.srcIndex.ProcessReferencedEdges(currentPapers, true, false, callbackWrap)
+			if err != nil {
+				return 0, 0, err
 			}
 		}
-		callback(refsFound)
+		if followIn {
+			err := bt.dstIndex.ProcessReferencedEdges(currentPapers, false, true, callbackWrap)
+			if err != nil {
+				return 0, 0, err
+			}
+		}
+		currentPapers = nextPapers
 	}
 	return numPapers, numEdges, nil
 }

@@ -24,7 +24,7 @@ type Decoder interface {
 }
 
 func DecodeAll(d Decoder) ([]Edge, error) {
-	edges := make([]Edge, 0, 450000) // About how many edges end up in a bucket
+	edges := make([]Edge, 0, 5000)
 	for edge, err := d.Decode(); err != io.EOF; edge, err = d.Decode() {
 		if err != nil {
 			return nil, err

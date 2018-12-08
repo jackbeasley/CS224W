@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 
 	pb "gopkg.in/cheggaaa/pb.v1"
@@ -82,7 +83,7 @@ func (ei *EdgeIndex) matchEdgesInFile(fileID int, paperIDs map[int64]bool, match
 	return edges, nil
 }
 
-func (ei *EdgeIndex) GetReferencedEdges(paperIDs map[int64]bool, matchSrc, matchDst bool) ([]Edge, error) {
+func (ei *EdgeIndex) ProcessReferencedEdges(paperIDs map[int64]bool, matchSrc, matchDst bool, callback func(int64, int64)) error {
 	fileIDsToPapers := make(map[int]map[int64]bool, len(paperIDs))
 	for paperID := range paperIDs {
 		if fileIDsToPapers[ei.nodeIDToFileID(paperID)] == nil {
@@ -98,7 +99,7 @@ func (ei *EdgeIndex) GetReferencedEdges(paperIDs map[int64]bool, matchSrc, match
 	// Use a channel like a semaphore so we can limit parallelism,
 	// primarily limiting file descriptors
 	parallelismSemaphoreChan := make(chan struct{}, ei.parallelism)
-
+	var callbackMutex = &sync.Mutex{}
 	for fileID, paperIDsInFile := range fileIDsToPapers {
 		wg.Add(1)
 		go func(fileID int, ids map[int64]bool, resultsIndex int) {
@@ -110,6 +111,13 @@ func (ei *EdgeIndex) GetReferencedEdges(paperIDs map[int64]bool, matchSrc, match
 			} else {
 				results[resultsIndex] = edges
 			}
+			callbackMutex.Lock()
+			for _, edge := range edges {
+				callback(edge.SrcID, edge.DstID)
+				edge = Edge{}
+			}
+			callbackMutex.Unlock()
+			runtime.GC()
 			<-parallelismSemaphoreChan
 		}(fileID, paperIDsInFile, resultsIndex)
 		resultsIndex++
@@ -118,14 +126,10 @@ func (ei *EdgeIndex) GetReferencedEdges(paperIDs map[int64]bool, matchSrc, match
 	for _, err := range errors {
 		// TODO: collect errors
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
-	edges := make([]Edge, 0, len(results)*100)
-	for _, resultList := range results {
-		edges = append(edges, resultList...)
-	}
-	return edges, nil
+	return nil
 }
 
 func (ei *EdgeIndex) GetWriterForNode(nodeID int64) (*os.File, error) {
