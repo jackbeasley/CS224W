@@ -159,6 +159,18 @@ func (bd *BinaryDecoder) Decode() (Edge, error) {
 	return edge, nil
 }
 
+func (bd *BinaryDecoder) DecodeInts() (int64, int64, error) {
+	edge := Edge{}
+	err := bd.gobDecoder.Decode(&edge)
+	srcID := int64(edge.SrcID)
+	dstID := int64(edge.DstID)
+	edge = Edge{}
+	if err != nil {
+		return 0, 0, err
+	}
+	return srcID, dstID, nil
+}
+
 func (bd *BinaryDecoder) Close() error {
 	if bd.decompressor != nil {
 		return bd.decompressor.Close()

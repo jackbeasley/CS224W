@@ -4,9 +4,9 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sync"
 
 	pb "gopkg.in/cheggaaa/pb.v1"
@@ -57,10 +57,10 @@ func (ei *EdgeIndex) GetReaderForFileID(fileID int) (*os.File, error) {
 	return file, nil
 }
 
-func (ei *EdgeIndex) matchEdgesInFile(fileID int, paperIDs map[int64]bool, matchSrc, matchDst bool) ([]Edge, error) {
+func (ei *EdgeIndex) matchEdgesInFile(fileID int, paperIDs map[int64]bool, matchSrc, matchDst bool, callback func(int64, int64)) error {
 	reader, err := ei.GetReaderForFileID(fileID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer reader.Close()
 
@@ -68,19 +68,18 @@ func (ei *EdgeIndex) matchEdgesInFile(fileID int, paperIDs map[int64]bool, match
 
 	d, err := NewBinaryDecoder(readBuf, true)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer d.Close()
-	edges := make([]Edge, 0, 100000)
-	for edge, err := d.Decode(); err != io.EOF; edge, err = d.Decode() {
+	for srcID, dstID, err := d.DecodeInts(); err != io.EOF; srcID, dstID, err = d.DecodeInts() {
 		if err != nil {
-			return nil, err
+			return err
 		}
-		if (matchSrc && paperIDs[edge.SrcID]) || (matchDst && paperIDs[edge.DstID]) {
-			edges = append(edges, edge)
+		if (matchSrc && paperIDs[srcID]) || (matchDst && paperIDs[dstID]) {
+			callback(srcID, dstID)
 		}
 	}
-	return edges, nil
+	return nil
 }
 
 func (ei *EdgeIndex) ProcessReferencedEdges(paperIDs map[int64]bool, matchSrc, matchDst bool, callback func(int64, int64)) error {
@@ -91,8 +90,6 @@ func (ei *EdgeIndex) ProcessReferencedEdges(paperIDs map[int64]bool, matchSrc, m
 		}
 		fileIDsToPapers[ei.nodeIDToFileID(paperID)][paperID] = true
 	}
-	results := make([][]Edge, len(fileIDsToPapers))
-	errors := make([]error, len(fileIDsToPapers))
 	resultsIndex := 0
 
 	var wg sync.WaitGroup
@@ -105,30 +102,20 @@ func (ei *EdgeIndex) ProcessReferencedEdges(paperIDs map[int64]bool, matchSrc, m
 		go func(fileID int, ids map[int64]bool, resultsIndex int) {
 			parallelismSemaphoreChan <- struct{}{}
 			defer wg.Done()
-			edges, err := ei.matchEdgesInFile(fileID, ids, matchSrc, matchDst)
+			err := ei.matchEdgesInFile(fileID, ids, matchSrc, matchDst, func(srcID, dstID int64) {
+				callbackMutex.Lock()
+				callback(srcID, dstID)
+				callbackMutex.Unlock()
+			})
 			if err != nil {
-				errors[resultsIndex] = err
-			} else {
-				results[resultsIndex] = edges
+				log.Println(err)
 			}
-			callbackMutex.Lock()
-			for _, edge := range edges {
-				callback(edge.SrcID, edge.DstID)
-				edge = Edge{}
-			}
-			callbackMutex.Unlock()
-			runtime.GC()
+
 			<-parallelismSemaphoreChan
 		}(fileID, paperIDsInFile, resultsIndex)
 		resultsIndex++
 	}
 	wg.Wait()
-	for _, err := range errors {
-		// TODO: collect errors
-		if err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
