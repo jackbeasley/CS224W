@@ -108,7 +108,6 @@ func writeEdgeList(filename string, graph map[int64]map[int64]bool) {
 			wrBuf.Write([]byte(fmt.Sprintf("%v\t%v\n", srcID, dstID)))
 		}
 	}
-
 }
 
 func hashFilename(i int64) string {

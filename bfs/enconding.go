@@ -128,11 +128,19 @@ func (be *BinaryEncoder) Close() error {
 }
 
 type BinaryDecoder struct {
+	decodeEdges  []Edge
+	indexChan    chan int
 	decompressor *gzip.Reader
 	gobDecoder   *gob.Decoder
 }
 
 func NewBinaryDecoder(reader io.Reader, decompress bool) (*BinaryDecoder, error) {
+	decodeEdges := make([]Edge, 1000)
+	indexChan := make(chan int, 1000)
+	for i := 0; i < 1000; i++ {
+		indexChan <- i
+	}
+
 	if decompress {
 		decompressor, err := gzip.NewReader(reader)
 		if err != nil {
@@ -140,13 +148,17 @@ func NewBinaryDecoder(reader io.Reader, decompress bool) (*BinaryDecoder, error)
 		}
 		gobDecoder := gob.NewDecoder(decompressor)
 		return &BinaryDecoder{
+			decodeEdges:  decodeEdges,
+			indexChan:    indexChan,
 			decompressor: decompressor,
 			gobDecoder:   gobDecoder,
 		}, nil
 	}
 	gobDecoder := gob.NewDecoder(reader)
 	return &BinaryDecoder{
-		gobDecoder: gobDecoder,
+		decodeEdges: decodeEdges,
+		indexChan:   indexChan,
+		gobDecoder:  gobDecoder,
 	}, nil
 }
 
@@ -160,11 +172,11 @@ func (bd *BinaryDecoder) Decode() (Edge, error) {
 }
 
 func (bd *BinaryDecoder) DecodeInts() (int64, int64, error) {
-	edge := Edge{}
-	err := bd.gobDecoder.Decode(&edge)
-	srcID := int64(edge.SrcID)
-	dstID := int64(edge.DstID)
-	edge = Edge{}
+	ind := <-bd.indexChan
+	err := bd.gobDecoder.Decode(&bd.decodeEdges[ind])
+	srcID := int64(bd.decodeEdges[ind].SrcID)
+	dstID := int64(bd.decodeEdges[ind].DstID)
+	bd.indexChan <- ind
 	if err != nil {
 		return 0, 0, err
 	}
