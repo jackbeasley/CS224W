@@ -42,7 +42,7 @@ func (ei *EdgeIndex) nodeIDToFileID(nodeID int64) int {
 }
 
 func (ei *EdgeIndex) fileIDToFilename(fileID int) string {
-	return fmt.Sprintf("%d.ind", fileID)
+	return fmt.Sprintf("%04d.txt", fileID)
 }
 
 func (ei *EdgeIndex) nodeIDToFilename(nodeID int64) string {
@@ -64,12 +64,9 @@ func (ei *EdgeIndex) matchEdgesInFile(fileID int, paperIDs map[int64]bool, match
 	}
 	defer reader.Close()
 
-	readBuf := bufio.NewReaderSize(reader, 500)
+	readBuf := bufio.NewReaderSize(reader, 50000)
 
-	d, err := NewBinaryDecoder(readBuf, true)
-	if err != nil {
-		return err
-	}
+	d := NewTextDecoder(readBuf)
 	defer d.Close()
 	for srcID, dstID, err := d.DecodeInts(); err != io.EOF; srcID, dstID, err = d.DecodeInts() {
 		if err != nil {
