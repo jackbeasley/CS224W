@@ -19,7 +19,7 @@ def mag_evaluate(query, wait_time=10):
             },
             headers={
                 "Ocp-Apim-Subscription-Key":
-                "665fd999adc04d7488ea810daf3dde75",
+                "1c99573804ad445dac00b28fdbafbea3",
                 "subscription-key": "",
             },
         )

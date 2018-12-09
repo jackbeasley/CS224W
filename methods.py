@@ -92,7 +92,7 @@ def mpa(start_node, translate, counts, Graph):
         if next_node < 0:
             break
         node = next_node
-        nodes.append(neighbor)
+        nodes.append(next_node)
     return [translate[nid] for nid in nodes]
 
 def mpa_betweenness(start_node, translate, Graph):
