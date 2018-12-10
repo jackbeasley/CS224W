@@ -55,6 +55,13 @@ func main() {
 
 	filename := fmt.Sprintf("%v.txt", paperIDStr)
 
+	if _, err := os.Stat(filename); !os.IsNotExist(err) {
+		err := os.Remove(filename)
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		panic(err)

@@ -3,8 +3,9 @@ import psutil
 import subprocess
 import json
 import random
+import os
 import time
-
+from collections import namedtuple
 
 def translate(mag_to_snap, mag_id, Graph):
     """Translate MAG IDs to SNAP IDs."""
@@ -34,7 +35,19 @@ def create_snap_graph(edgelist_path, save_path):
 
     return Graph, mag_to_snap
 
-
+BFSResult = namedtuple("BFSResult", [
+    'followedInLinks' , 
+    'followedOutLinks', 
+    'numFoundEdges'   , 
+    'numFoundNodes'   , 
+    'numBFSLevels'    , 
+    'outputEdgeList'  , 
+    'sourcePaperID'   , 
+    'userTime'        , 
+    'systemTime'      , 
+    'totalTime'       , 
+    'maxMemory'       , 
+])
 def get_bfs_graph(paper_id, levels, follow_out, follow_in, fdLimit=100):
     """
     Wrapper around Go program in bfs.go
@@ -46,7 +59,7 @@ def get_bfs_graph(paper_id, levels, follow_out, follow_in, fdLimit=100):
     :param fdLimit:
     :returns: a snap graph of the papers found in the BFS along with a map that maps MAG ids (int64) to SNAP ids (int32)
     """
-    cmd = ["go", "run", "bfs.go"]
+    cmd = ["go", "run", "bfs_new.go"]
     if follow_out:
         cmd.append('-out')
     if follow_in:
@@ -55,31 +68,35 @@ def get_bfs_graph(paper_id, levels, follow_out, follow_in, fdLimit=100):
     cmd += ['-fdLimit', str(fdLimit)]
     cmd.append(str(paper_id))
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+    ru = os.wait4(p.pid, 0)[2]
     out, err = p.communicate()
 
-    return json.loads(out)
+    print out
+    go_result = json.loads(out)
 
+    return BFSResult(
+             go_result['followedInLinks'],
+             go_result['followedOutLinks'],
+             go_result['numFoundEdges'],
+             go_result['numFoundNodes'],
+             go_result['numBFSLevels'],
+             str(go_result['outputEdgeList']),
+             go_result['sourcePaperID'],
+             ru.ru_utime,
+             ru.ru_stime,
+             ru.ru_utime + ru.ru_stime,
+             ru.ru_maxrss)
 
 MAG_MIN_ID = 37
 MAG_MAX_ID = 2895778921
 
-
 def get_random_nodes(n=1000):
-    cmd = 'gshuf -n {} PaperReferences.txt'.format(n)
+    cmd = 'shuf -n {} PaperReferences.txt'.format(n)
     print cmd
 
     p = psutil.Popen(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
-
-    while p.poll() is None:
-        print p.name()
-        print p.cpu_times()
-        print p.memory_info()
-        print p.ppid()
-        print p.status()
-        time.sleep(2)
-
     out, err = p.communicate()
-    p.wait()
-
+     
     return set([int(line[0:line.find('\t')]) for line in out.splitlines()])

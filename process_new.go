@@ -78,15 +78,18 @@ func main() {
 	if !*destHash {
 		index, err = bfs.OpenIndex(SrcHashFolder, true, 50)
 		if err != nil {
-			log.Fatal(err)
+			panic(err)
 		}
 	} else {
 		index, err = bfs.OpenIndex(DstHashFolder, false, 50)
 		if err != nil {
-			log.Fatal(err)
+			panic(err)
 		}
 	}
 
-	index.PopulateIndex(*paperReferencesFile, *buckets, *compress)
+	err = index.PopulateIndex(*paperReferencesFile, *buckets, *compress)
+	if err != nil {
+		panic(err)
+	}
 
 }
