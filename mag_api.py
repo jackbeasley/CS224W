@@ -19,7 +19,7 @@ def mag_evaluate(query, wait_time=10):
             },
             headers={
                 "Ocp-Apim-Subscription-Key":
-                "665fd999adc04d7488ea810daf3dde75",
+                "1c99573804ad445dac00b28fdbafbea3",
                 "subscription-key": "",
             },
         )
@@ -47,7 +47,8 @@ def mag_evaluate(query, wait_time=10):
 
 def mag_get_title(mag_id):
     obj = mag_evaluate("Id={}".format(mag_id))[0]
-    return str(obj['Ti']) + " (" + str([str(auth['AuN']) for auth in obj['AA']]) + ", " + str(int(obj['Y'])) + ")"
+    return (obj['Ti']).encode('ascii', 'replace') + " (" + str(int(obj['Y'])) + ")"
+    #return str(obj['Ti']) + " (" + str([str(auth['AuN']) for auth in obj['AA']]) + ", " + str(int(obj['Y'])) + ")"
 
 
 format_str = '%Y-%m-%d'  # The format
